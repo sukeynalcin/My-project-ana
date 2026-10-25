@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 3
   tags:
   - Ladder
+  - Zemin
+  - Dusman
+  - Ev
   layers:
   - Default
   - TransparentFX

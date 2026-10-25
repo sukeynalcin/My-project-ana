@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 4247352673690175223}
   - component: {fileID: 689371652984402193}
   - component: {fileID: 1845266086212071936}
-  - component: {fileID: 1166894106452106351}
+  - component: {fileID: 6870072463863420919}
   m_Layer: 0
   m_Name: "\xE7\xF6rek 2"
   m_TagString: Untagged
@@ -130,7 +130,7 @@ CircleCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_Radius: 0.64
---- !u!114 &1166894106452106351
+--- !u!114 &6870072463863420919
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -139,6 +139,6 @@ MonoBehaviour:
   m_GameObject: {fileID: 507565229062467280}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe8681576517ff24fb5dd0e210078505, type: 3}
+  m_Script: {fileID: 11500000, guid: 990a6a18081b2fe4d8e660dd62a3ead3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Corek

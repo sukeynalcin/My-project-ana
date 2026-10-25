@@ -1,0 +1,13 @@
+fileFormatVersion: 2
+guid: b801aba0ffc91874295cc52717ea76cf
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - inikSprite: {fileID: 21300000, guid: f8b570d63630ed54e8407a3eb2f4c2eb, type: 3}
+  - kalkikSprite: {fileID: 21300000, guid: da15b3cbc28e1b84c8868c8fa7f55baf, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

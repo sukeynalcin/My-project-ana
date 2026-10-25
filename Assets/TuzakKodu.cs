@@ -7,10 +7,12 @@ public class TuzakKodu : MonoBehaviour
     private Animator anim;
     private bool tetiklendi = false;
     private Transform tasinacakKarakter;
+    private Rigidbody2D playerRb;
 
     [Header("Tuzak Ayarları")]
-    [SerializeField] private float yukselmeHizi = 3f; // Karakterin yukarı çıkma hızı
-    [SerializeField] private float isinlanmaGecikmesi = 0.5f;
+    [SerializeField] private float tuzakHasari = 25f;       // 100 üzerinden 25 can götürür
+    [SerializeField] private float yukselmeHizi = 3f;      // Karakterin yukarı çıkma hızı
+    [SerializeField] private float askidaKalmaSuresi = 0.6f; // Ne kadar süre havada tutulsun
 
     private void Start()
     {
@@ -23,47 +25,65 @@ public class TuzakKodu : MonoBehaviour
         {
             tetiklendi = true;
 
-            // 1. Karakterin yerçekimini ve fiziğini tamamen kapat
-            Rigidbody2D playerRb = other.GetComponent<Rigidbody2D>();
+            // 1. Karakterin fiziğini duraklat
+            playerRb = other.GetComponent<Rigidbody2D>();
             if (playerRb != null)
             {
                 playerRb.simulated = false;
             }
 
-            // 2. Takip edilecek karakteri kaydet ve animasyonu başlat
+            // 2. Karakteri yukarı taşımak için kaydet ve animasyonu başlat
             tasinacakKarakter = other.transform;
             if (anim != null)
             {
                 anim.SetTrigger("Acilsin");
             }
 
-            // 3. Bölüm yenileme sürecini başlat
-            StartCoroutine(KarakteriIsinla(other.gameObject));
+            // 3. OtomatikCanBari scriptine hasar gönder
+            OtomatikCanBari can = other.GetComponent<OtomatikCanBari>();
+            if (can == null) can = other.GetComponentInParent<OtomatikCanBari>();
+
+            if (can != null)
+            {
+                // Yukarı doğru darbe yönüyle hasar ver
+                can.HasarAl(tuzakHasari, Vector2.up);
+
+                // Can bittiyse sahneyi baştan başlat, bitmediyse kızı yere bırak
+                StartCoroutine(TuzakSonrasiIslem(can.mevcutCan <= 0));
+            }
+            else
+            {
+                StartCoroutine(TuzakSonrasiIslem(false));
+            }
         }
     }
 
     private void Update()
     {
-        // Tetiklenme anından itibaren karakteri pürüzsüzce yukarı kaldırır
         if (tetiklendi && tasinacakKarakter != null)
         {
             tasinacakKarakter.Translate(Vector3.up * yukselmeHizi * Time.deltaTime);
         }
     }
 
-    private IEnumerator KarakteriIsinla(GameObject player)
+    private IEnumerator TuzakSonrasiIslem(bool olduMu)
     {
-        yield return new WaitForSeconds(isinlanmaGecikmesi);
+        yield return new WaitForSeconds(askidaKalmaSuresi);
 
-        if (player != null)
+        // Yukarı taşımayı durdur
+        tetiklendi = false;
+        tasinacakKarakter = null;
+
+        // Karakterin fiziğini tekrar aç (yere düşebilsin)
+        if (playerRb != null)
         {
-            Rigidbody2D playerRb = player.GetComponent<Rigidbody2D>();
-            if (playerRb != null)
-            {
-                playerRb.simulated = true;
-            }
+            playerRb.simulated = true;
         }
 
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        // Eğer canı bittiyse bölümü baştan yükle
+        if (olduMu)
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
     }
 }

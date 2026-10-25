@@ -1,29 +1,36 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class OyuncuKontrol : MonoBehaviour
 {
+    [Header("Yatay Hareket")]
     public float HareketHizi = 5f;
 
     [Header("Zıplama Ayarları")]
-    public float ZiplamaKuvveti = 7f;       // Tek Space (Normal Zıplama)
-    public float YuksekZiplamaKuvveti = 11f; // Havada İkinci Space (Ekstra Yüksek Zıplama)
+    public float ZiplamaKuvveti = 7f;       // İlk Space (Normal Zıplama)
+    public float YuksekZiplamaKuvveti = 11f; // Havada İkinci Space (Çift Zıplama)
 
     [Header("Tırmanma Ayarları")]
-    public float TirmanmaHizi = 5f;
+    public float TirmanmaHizi = 4.5f;
 
-    private bool yuksekZiplamaYapildi = false;
     private bool yerdeMi = true;
+    private bool yuksekZiplamaYapildi = false;
 
-    // Tırmanma Değişkenleri
+    // Tırmanma ve Zemin Değişkenleri
     private bool merdivendeMi = false;
     private bool tirmaniyorMu = false;
     private float varsayilanYercekimi;
+    private Collider2D sonDurulanPlatform;
+    private bool platformdanIniyorMu = false;
 
+    // Bileşenler
     private Rigidbody2D rb;
     private Animator anim;
     private SpriteRenderer spriteRenderer;
+    private Collider2D karakterCollider;
 
-    // Fizik ve Girdi Değişkenleri
+    // Girdiler
     private float yatayGirdi;
     private float dikeyGirdi;
     private bool ziplamaIstegi = false;
@@ -33,64 +40,95 @@ public class OyuncuKontrol : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        karakterCollider = GetComponent<Collider2D>();
 
-        // Karakterin varsayılan yerçekimi değerini kaydet
         varsayilanYercekimi = rb.gravityScale;
     }
 
     void Update()
     {
-        // 1. GİRDİLERİ AL (Update içinde tuş kaçırmamak için alinir)
-        yatayGirdi = Input.GetAxisRaw("Horizontal");
-        dikeyGirdi = Input.GetAxisRaw("Vertical");
+        Keyboard klavye = Keyboard.current;
+        if (klavye == null) return;
 
-        // Merdiven kontrolü
-        if (merdivendeMi && Mathf.Abs(dikeyGirdi) > 0f)
+        // 1. YATAY GİRDİ (A - D / Ok Tuşları)
+        yatayGirdi = 0f;
+        if (klavye.dKey.isPressed || klavye.rightArrowKey.isPressed) yatayGirdi += 1f;
+        if (klavye.aKey.isPressed || klavye.leftArrowKey.isPressed) yatayGirdi -= 1f;
+
+        // 2. DİKEY GİRDİ (W - S / Yukarı - Aşağı Ok Tuşları)
+        dikeyGirdi = 0f;
+        if (klavye.wKey.isPressed || klavye.upArrowKey.isPressed) dikeyGirdi += 1f;
+        if (klavye.sKey.isPressed || klavye.downArrowKey.isPressed) dikeyGirdi -= 1f;
+
+        // 3. MERDİVEN VE AŞAĞI İNME TETİĞİ
+        if (merdivendeMi)
         {
-            tirmaniyorMu = true;
+            // Yukarı basarsa tırman
+            if (dikeyGirdi > 0.1f)
+            {
+                tirmaniyorMu = true;
+            }
+            // Aşağı basarsa hem tırman hem de altındaki zemini delip in
+            else if (dikeyGirdi < -0.1f)
+            {
+                tirmaniyorMu = true;
+
+                if (sonDurulanPlatform != null && !platformdanIniyorMu)
+                {
+                    StartCoroutine(PlatformuGeciciKapat(sonDurulanPlatform));
+                }
+            }
         }
 
-        // Zıplama Tuşuna Basıldı mı?
-        if (Input.GetButtonDown("Jump") && !tirmaniyorMu)
+        // 4. ZIPLAMA TUŞU (Space)
+        if (klavye.spaceKey.wasPressedThisFrame && !tirmaniyorMu)
         {
             ziplamaIstegi = true;
         }
 
-        // 2. KIZIN YÖNÜNÜ DÖNDÜRME
-        if (yatayGirdi > 0)
-        {
-            spriteRenderer.flipX = false;
-        }
-        else if (yatayGirdi < 0)
-        {
-            spriteRenderer.flipX = true;
-        }
+        // 5. GÖRSEL DÖNME (Sprite Flip)
+        if (yatayGirdi > 0) spriteRenderer.flipX = false;
+        else if (yatayGirdi < 0) spriteRenderer.flipX = true;
 
-        // 3. ANİMASYONLARI YÖNET
         AnimasyonlariYonet();
     }
 
-    // FİZİK HAREKETLERİ BURADA YAPILIR (Titremeyi Engelleyen Kısım!)
     void FixedUpdate()
     {
-        // Yürüme ve Tırmanma Fiziği
+        // MERDİVENDEYKEN HAREKET
         if (tirmaniyorMu)
         {
             rb.gravityScale = 0f;
+            // Hem X yönünde hem Y yönünde tam kontrollü hareket
             rb.linearVelocity = new Vector2(yatayGirdi * HareketHizi, dikeyGirdi * TirmanmaHizi);
         }
+        // NORMAL HAREKET
         else
         {
             rb.gravityScale = varsayilanYercekimi;
             rb.linearVelocity = new Vector2(yatayGirdi * HareketHizi, rb.linearVelocity.y);
         }
 
-        // Zıplama Fiziği
         if (ziplamaIstegi)
         {
             ZiplamaUygula();
-            ziplamaIstegi = false; // İsteği sıfırla
+            ziplamaIstegi = false;
         }
+    }
+
+    // Tepedeki taş platformu geçici olarak yok sayıp kızın aşağı kaymasını sağlar
+    private IEnumerator PlatformuGeciciKapat(Collider2D platformCol)
+    {
+        platformdanIniyorMu = true;
+        Physics2D.IgnoreCollision(karakterCollider, platformCol, true);
+
+        yield return new WaitForSeconds(0.45f);
+
+        if (karakterCollider != null && platformCol != null)
+        {
+            Physics2D.IgnoreCollision(karakterCollider, platformCol, false);
+        }
+        platformdanIniyorMu = false;
     }
 
     private void ZiplamaUygula()
@@ -105,12 +143,14 @@ public class OyuncuKontrol : MonoBehaviour
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, YuksekZiplamaKuvveti);
             yuksekZiplamaYapildi = true;
-            anim.Play("kiz_jump", -1, 0f);
+            if (anim != null) anim.Play("kiz_jump", -1, 0f);
         }
     }
 
     private void AnimasyonlariYonet()
     {
+        if (anim == null) return;
+
         if (tirmaniyorMu)
         {
             if (dikeyGirdi != 0)
@@ -120,57 +160,62 @@ public class OyuncuKontrol : MonoBehaviour
             }
             else
             {
-                anim.speed = 0f;
+                anim.speed = 0f; // Merdivende dururken kareyi dondur
             }
         }
         else
         {
             anim.speed = 1f;
 
-            if (!yerdeMi)
+            if (yerdeMi)
             {
-                // Havadayken
-            }
-            else if (yatayGirdi != 0)
-            {
-                anim.Play("kiz_run");
-            }
-            else
-            {
-                anim.Play("kiz_idle");
+                if (yatayGirdi != 0) anim.Play("kiz_run");
+                else anim.Play("kiz_idle");
             }
         }
     }
 
-    // Merdivene Giriş / Çıkış Kontrolleri
-    private void OnTriggerEnter2D(Collider2D other)
+    // --- MERDİVEN TETİKLEYİCİLERİ ---
+    private void OnTriggerEnter2D(Collider2D other) => MerdivenGiris(other);
+    private void OnTriggerStay2D(Collider2D other) => MerdivenGiris(other);
+
+    private void OnTriggerExit2D(Collider2D other)
     {
-        if (other.CompareTag("Ladder"))
+        if (other.CompareTag("Ladder") || other.name.ToLower().Contains("merdiven"))
+        {
+            merdivendeMi = false;
+            tirmaniyorMu = false;
+            rb.gravityScale = varsayilanYercekimi;
+            if (anim != null) anim.speed = 1f;
+        }
+    }
+
+    private void MerdivenGiris(Collider2D other)
+    {
+        if (other.CompareTag("Ladder") || other.name.ToLower().Contains("merdiven"))
         {
             merdivendeMi = true;
         }
     }
 
-    private void OnTriggerExit2D(Collider2D other)
-    {
-        if (other.CompareTag("Ladder"))
-        {
-            merdivendeMi = false;
-            tirmaniyorMu = false;
-            anim.speed = 1f;
-        }
-    }
+    // --- ZEMİN ÇARPIŞMALARI ---
+    private void OnCollisionEnter2D(Collision2D collision) => ZeminTemas(collision);
+    private void OnCollisionStay2D(Collision2D collision) => ZeminTemas(collision);
 
-    // Yere ve Küplere basma kontrolü
-    private void OnCollisionEnter2D(Collision2D collision)
+    private void ZeminTemas(Collision2D collision)
     {
-        string carptigiNesne = collision.gameObject.name.ToLower();
-
-        // BURAYA "tahta" EKLENDİ! Artık tahtaya basınca da yerde kabul edilir.
-        if (carptigiNesne.Contains("zemin") || carptigiNesne.Contains("kup") || carptigiNesne.Contains("cube") || carptigiNesne.Contains("tahta"))
+        // Çarptığı katı nesne (merdiven trigger'ı değilse) zemindir
+        if (!collision.collider.isTrigger)
         {
             yerdeMi = true;
             yuksekZiplamaYapildi = false;
+            sonDurulanPlatform = collision.collider;
+
+            // Merdivenden tamamen inip taban zemine bastığında tırmanmayı bitir
+            if (tirmaniyorMu && dikeyGirdi <= 0 && !collision.gameObject.name.ToLower().Contains("tahta"))
+            {
+                tirmaniyorMu = false;
+            }
         }
     }
 }

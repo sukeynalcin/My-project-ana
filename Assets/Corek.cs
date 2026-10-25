@@ -4,11 +4,16 @@ public class Corek : MonoBehaviour
 {
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // Temas eden objenin etiketinde Player yazıyor mu?
+        // Temas eden oyuncuysa
         if (other.CompareTag("Player"))
         {
-            Debug.Log("Çörek toplandı!");
-            Destroy(gameObject); // Çöreği sahneden sil
+            // Sayaca 1 adet ekle
+            if (CorekSayaci.Instance != null)
+            {
+                CorekSayaci.Instance.CorekEkle(1);
+            }
+
+            Destroy(gameObject); // Çöreği sahneden kaldır
         }
     }
 }
